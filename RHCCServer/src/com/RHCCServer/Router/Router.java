@@ -1,5 +1,4 @@
 package com.RHCCServer.Router;
-
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -7,14 +6,11 @@ import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.Collection;
-import java.util.Date;
-
 import org.java_websocket.WebSocket;
 import org.java_websocket.WebSocketImpl;
 import org.java_websocket.framing.Framedata;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
-import org.java_websocket.util.Base64;
 
 public class Router extends WebSocketServer {
 
@@ -28,25 +24,31 @@ public class Router extends WebSocketServer {
 
 	@Override
 	public void onOpen( WebSocket conn, ClientHandshake handshake ) {
-		this.sendToAll( "new connection: " + handshake.getResourceDescriptor() );
-		System.out.println( conn.getRemoteSocketAddress().getAddress().getHostAddress() + " entered the room!" );
+		this.sendToAll("new connection: " + handshake.getResourceDescriptor());
+		System.out.println( conn.getRemoteSocketAddress().getAddress().getHostAddress() + " entered the collaboration!" );
+		
+//		System.out.println("Res Desc..." + handshake.getResourceDescriptor());
+//		System.out.println("Rem Sock Add..." +conn.getRemoteSocketAddress());
+//		System.out.println("Rem Sock Add Add..." +conn.getRemoteSocketAddress().getAddress());
+//		System.out.println("Host Add..." +conn.getRemoteSocketAddress().getAddress().getHostAddress());
+		
 	}
 
 	@Override
 	public void onClose( WebSocket conn, int code, String reason, boolean remote ) {
-		this.sendToAll( conn + " has left the room!" );
-		System.out.println( conn + " has left the room!" );
+		this.sendToAll( conn + " has left the collaboration!" );
+		System.out.println( conn + " has left the collaboration!" );
 	}
 
 	@Override
 	public void onMessage( WebSocket conn, String message ) {
-		this.sendToAll( message );
-		try {
-			Base64.decodeToFile(message, "C:/Users/Madhur/workspace/RHCCServer/fig/temp1.jpg");
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		//System.out.println( conn + ": " + message );
+		this.sendToAllExcept( message , conn);
+//		try {
+//			Base64.decodeToFile(message, "	C:/Users/Madhur/workspace/RHCCServer/fig/temp1.jpg");
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//		}
+//		System.out.println( conn + ": " + message );
 	}
 
 	@Override
@@ -70,7 +72,7 @@ public class Router extends WebSocketServer {
 		}
 		Router s = new Router( port );
 		s.start();
-		System.out.println( "ChatServer started on port: " + s.getPort() );
+		System.out.println( "RHCCServer started on port: " + s.getPort() );
 
 		BufferedReader sysin = new BufferedReader( new InputStreamReader( System.in ) );
 		while ( true ) {
@@ -100,6 +102,16 @@ public class Router extends WebSocketServer {
 		synchronized ( con ) {
 			for( WebSocket c : con ) {
 				c.send( text );
+			}
+		}
+	}
+	
+	public void sendToAllExcept( String text , WebSocket conn) {
+		Collection<WebSocket> con = connections();
+		synchronized ( con ) {
+			for( WebSocket c : con ) {
+				if(c != conn && c.isOpen())
+					c.send( text );
 			}
 		}
 	}
