@@ -6,6 +6,7 @@ import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.Collection;
+
 import org.java_websocket.WebSocket;
 import org.java_websocket.WebSocketImpl;
 import org.java_websocket.framing.Framedata;
@@ -27,10 +28,6 @@ public class Router extends WebSocketServer {
 		this.sendToAll("new connection: " + handshake.getResourceDescriptor());
 		System.out.println( conn.getRemoteSocketAddress().getAddress().getHostAddress() + " entered the collaboration!" );
 		
-//		System.out.println("Res Desc..." + handshake.getResourceDescriptor());
-//		System.out.println("Rem Sock Add..." +conn.getRemoteSocketAddress());
-//		System.out.println("Rem Sock Add Add..." +conn.getRemoteSocketAddress().getAddress());
-//		System.out.println("Host Add..." +conn.getRemoteSocketAddress().getAddress().getHostAddress());
 		
 	}
 
@@ -43,12 +40,6 @@ public class Router extends WebSocketServer {
 	@Override
 	public void onMessage( WebSocket conn, String message ) {
 		this.sendToAllExcept( message , conn);
-//		try {
-//			Base64.decodeToFile(message, "	C:/Users/Madhur/workspace/RHCCServer/fig/temp1.jpg");
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//		}
-//		System.out.println( conn + ": " + message );
 	}
 
 	@Override

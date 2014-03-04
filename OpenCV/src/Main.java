@@ -1,5 +1,6 @@
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -11,11 +12,16 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+
 import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
+import javax.swing.JSlider;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
+
 import org.java_websocket.WebSocketImpl;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.drafts.Draft;
@@ -36,17 +42,19 @@ public class Main {
 	
 	static { System.loadLibrary(Core.NATIVE_LIBRARY_NAME); }
 	private JFrame window;
-	private JButton start, stop;
+	private JButton start, stop, save;
 	private ImagePanel ip1;
 	private ImagePanel ip2;
 	private ImagePanel ip3;
 	private JPanel buttonpanel;
+	private JSlider jslider;
 	private VideoCapture video = null;	
 	private WebClient webclient;
 	private Boolean begin = false;
 	private Mat frameInternal = new Mat();
 	private Mat frameExternal = new Mat();
 	private String defaultloc;
+	private double alpha=0.5;
 	
 	public Main(String defaultloc) throws URISyntaxException
 	{
@@ -85,7 +93,6 @@ public class Main {
 		        try {
 					start();
 				} catch (URISyntaxException e1) {
-					// TODO Auto-generated catch block
 					e1.printStackTrace();
 				}
 		      }
@@ -101,7 +108,39 @@ public class Main {
 		      }
 		});
 		buttonpanel.add(stop);
-		window.add(buttonpanel);
+		
+		save = new JButton("Save");
+		save.setBounds(10, 90, 70, 30);
+		save.addActionListener(new ActionListener(){
+		      @Override
+		      public void actionPerformed(ActionEvent e){
+		        try {
+					save();
+				} catch (Exception e1) {
+					e1.printStackTrace();
+				}
+		      }
+		});
+		buttonpanel.add(save);
+		
+		
+		jslider=new JSlider(JSlider.VERTICAL,0,10,5);//direction , min , max , current
+		jslider.setBounds(10, 150, 70, 200);
+		jslider.setFont(new Font("Tahoma",Font.BOLD,12));
+        jslider.setMajorTickSpacing(1);
+        jslider.setPaintLabels(true);
+        jslider.setPaintTicks(true);
+        jslider.setPaintTrack(true);
+        jslider.setAutoscrolls(true);
+        jslider.setPreferredSize(new Dimension(50,50));
+        jslider.addChangeListener(new ChangeListener() {
+            @Override
+            public void stateChanged(ChangeEvent e) {
+            	alpha=(jslider.getValue())/10.0;
+            }
+        });
+        buttonpanel.add(jslider);
+        window.add(buttonpanel);
 		
 	    Toolkit tk = Toolkit.getDefaultToolkit();
 		Dimension screen = tk.getScreenSize();
@@ -133,7 +172,6 @@ public class Main {
 					try {
 						Thread.sleep(2000);
 					} catch (InterruptedException e1) {
-						// TODO Auto-generated catch block
 						e1.printStackTrace();
 					}
 					
@@ -171,7 +209,7 @@ public class Main {
 							        Imgproc.resize(frameExternal, frameTempExternal, frameTempExternal.size());
 							        
 							        Mat frameTempCombined = new Mat(240,320,CvType.CV_8UC3);						        
-							        Core.addWeighted(frameTempInternal, 0.5, frameTempExternal, 0.5, 10.0, frameTempCombined);
+							        Core.addWeighted(frameTempInternal, alpha, frameTempExternal, 1-alpha, 10.0, frameTempCombined);
 							        						        
 							        MatOfByte matOfByteCombined= new MatOfByte();						        						       
 								
@@ -196,10 +234,9 @@ public class Main {
 							    try {
 									bufImageInternal = ImageIO.read(new ByteArrayInputStream(byteArrayInternal));
 									String base64 = ImageUtils.imageToString(bufImageInternal,"jpg");
-							        webclient.send(base64);
+									webclient.send(base64);
 							        
 								} catch (IOException e) {
-									// TODO Auto-generated catch block
 									e.printStackTrace();
 								}
 						        ip1.updateImage(bufImageInternal);
@@ -210,6 +247,24 @@ public class Main {
 			}).start();			
 		}
 	}
+	
+	
+	private void save()
+	{
+		BufferedImage savimg = (BufferedImage)ip3.getImage();
+		if(savimg != null)
+		{
+			byte[] data = ((DataBufferByte) savimg.getRaster().getDataBuffer()).getData();
+			Mat saveframe = new Mat(240, 320, CvType.CV_8UC3);
+			saveframe.put(0, 0, data);					        				        											        						        
+			Highgui.imwrite("saved.jpg",saveframe);
+			System.out.println("Image Saved ...");
+		}else
+		{
+			System.out.println("Cannot save Image.. Non existant remote Connection!");
+		}
+	}
+	
 	
 	private void stop()
 	{
@@ -235,7 +290,7 @@ public class Main {
 			loc = args[ 0 ];
 			System.out.println( "Default server url specified: \'" + loc + "\'" );
 		} else {
-			loc = "ws://192.168.1.4:"+port;
+			loc = "ws://192.168.:"+port;
 			System.out.println( "Default server url not specified: defaulting to \'" + loc + "\'" );
 		}
 						
@@ -270,7 +325,8 @@ class WebClient extends WebSocketClient
 
 	@Override
 	public void onClose( int code, String reason, boolean remote ) {
-		System.out.println("Closed");		
+		System.out.println("Closed");
+		this.close();
 	}
 
 	@Override
