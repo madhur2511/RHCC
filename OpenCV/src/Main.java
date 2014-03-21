@@ -229,12 +229,21 @@ public class Main {
 								    }
 						        }
 						        
+						        if(webclient.getMessage().contains("new connection")){
+						        	System.out.println(webclient.getMessage().toString());
+						        }
+						        
+						        if(webclient.getMessage().contains("left the collaboration")){
+						        	System.out.println(webclient.getMessage().toString());
+						        }
+						      
 						        Highgui.imencode(".jpg", frameTempInternal, matOfByteInternal);
 							    byteArrayInternal = matOfByteInternal.toArray();
 							    try {
 									bufImageInternal = ImageIO.read(new ByteArrayInputStream(byteArrayInternal));
 									String base64 = ImageUtils.imageToString(bufImageInternal,"jpg");
-									webclient.send(base64);
+									if(webclient.isOpen())
+										webclient.send(base64);
 							        
 								} catch (IOException e) {
 									e.printStackTrace();
@@ -290,7 +299,7 @@ public class Main {
 			loc = args[ 0 ];
 			System.out.println( "Default server url specified: \'" + loc + "\'" );
 		} else {
-			loc = "ws://192.168.:"+port;
+			loc = "ws://192.168.2.9:"+port+"?name=Madhur&group=pescs";
 			System.out.println( "Default server url not specified: defaulting to \'" + loc + "\'" );
 		}
 						
@@ -320,12 +329,12 @@ class WebClient extends WebSocketClient
 
 	@Override
 	public void onOpen( ServerHandshake handshake ) {
-		System.out.println( "You are connected to ChatServer: " + getURI() + "\n" );						
+		System.out.println( "You are connected to RHCCServer: " + getURI() + "\n" );						
 	}
 
 	@Override
 	public void onClose( int code, String reason, boolean remote ) {
-		System.out.println("Closed");
+		System.out.println("Closed because "+reason+code);
 		this.close();
 	}
 

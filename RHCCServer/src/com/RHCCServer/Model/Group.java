@@ -1,18 +1,37 @@
 package com.RHCCServer.Model;
-
 import java.util.ArrayList;
 
-public class Group {
+public class Group 
+{
+	private String groupName;
+	private ArrayList<Client> clients;
 	
-	private ArrayList<Client> group;
+	public Group(String name)
+	{
+		groupName = name;
+		clients = new ArrayList<Client>();
+	}
 	
 	public void addMember(Client client)
 	{
-		group.add(client);
+		clients.add(client);
 	}
 	
 	public boolean removeMember(Client client)
 	{
-		return group.remove(client);
+		return clients.remove(client);
+	}
+	
+	public ArrayList<Client> getAllMembers()
+	{
+		return this.clients;
+	}
+
+	public String getGroupName() {
+		return groupName;
+	}
+
+	public void setGroupName(String groupName) {
+		this.groupName = groupName;
 	}
 }
