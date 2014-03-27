@@ -52,7 +52,6 @@ public class Main {
 	private WebClient webclient;
 	private Boolean begin = false;
 	private Mat frameInternal = new Mat();
-	private Mat frameExternal = new Mat();
 	private String defaultloc;
 	private double alpha=0.5;
 	
@@ -176,7 +175,6 @@ public class Main {
 					}
 					
 					BufferedImage bufImageInternal = null;
-			        BufferedImage bufImageExternal;
 			        BufferedImage bufImageCombined;
 			        
 			        byte[] byteArrayInternal;				        
@@ -186,6 +184,7 @@ public class Main {
 					{
 						synchronized(begin){
 							// Internal frame read
+							
 							video.read(frameInternal);
 					        video.retrieve(frameInternal);
 					        
@@ -195,32 +194,13 @@ public class Main {
 					        
 					        synchronized(webclient)
 					        {
-						        bufImageExternal = ImageUtils.stringToImage(webclient.getMessage());
+						        bufImageCombined = ImageUtils.stringToImage(webclient.getMessage());
 						        
-						        if(!(webclient.getMessage().equals("/")) && (bufImageExternal != null)) 
+						        if(!(webclient.getMessage().equals("/")) && (bufImageCombined != null)) 
 						        {						        	
-							        //External frame read
-						        	
-							        byte[] data = ((DataBufferByte) bufImageExternal.getRaster().getDataBuffer()).getData();
-									frameExternal = new Mat(240, 320, CvType.CV_8UC3);
-									frameExternal.put(0, 0, data);					        				        											        						        
-							        
-							        Mat frameTempExternal = new Mat(240,320,CvType.CV_8UC3);
-							        Imgproc.resize(frameExternal, frameTempExternal, frameTempExternal.size());
-							        
-							        Mat frameTempCombined = new Mat(240,320,CvType.CV_8UC3);						        
-							        Core.addWeighted(frameTempInternal, alpha, frameTempExternal, 1-alpha, 10.0, frameTempCombined);
-							        						        
-							        MatOfByte matOfByteCombined= new MatOfByte();						        						       
-								
-								    Highgui.imencode(".jpg", frameTempCombined, matOfByteCombined);
-								    byte[] byteArrayCombined = matOfByteCombined.toArray();
-								    
 								    try
-								    {					    								        
-								        //bufImageExternal = ImageUtils.stringToImage(webclient.getMessage());
-								        bufImageCombined = ImageIO.read(new ByteArrayInputStream(byteArrayCombined));								        							        							        							       
-								        ip2.updateImage(bufImageExternal);
+								    {					    								         
+								        ip2.updateImage(bufImageCombined);
 								        ip3.updateImage(bufImageCombined);							        							        									        
 								    }
 								    catch(Exception e)
@@ -242,9 +222,9 @@ public class Main {
 							    try {
 									bufImageInternal = ImageIO.read(new ByteArrayInputStream(byteArrayInternal));
 									String base64 = ImageUtils.imageToString(bufImageInternal,"jpg");
+									
 									if(webclient.isOpen())
 										webclient.send(base64);
-							        
 								} catch (IOException e) {
 									e.printStackTrace();
 								}
@@ -299,7 +279,7 @@ public class Main {
 			loc = args[ 0 ];
 			System.out.println( "Default server url specified: \'" + loc + "\'" );
 		} else {
-			loc = "ws://192.168.2.9:"+port+"?name=Madhur&group=pescs";
+			loc = "ws://192.168.2.13:"+port+"?name=Madhur&group=pescs";
 			System.out.println( "Default server url not specified: defaulting to \'" + loc + "\'" );
 		}
 						

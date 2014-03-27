@@ -1,23 +1,33 @@
 package com.RHCCServer.Router;
-import java.io.BufferedReader;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collection;
-
+import javax.imageio.ImageIO;
 import org.java_websocket.WebSocket;
 import org.java_websocket.WebSocketImpl;
 import org.java_websocket.framing.Framedata;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
+import org.opencv.core.Core;
+import org.opencv.core.CvType;
+import org.opencv.core.Mat;
+import org.opencv.core.MatOfByte;
+import org.opencv.highgui.Highgui;
+import org.opencv.imgproc.Imgproc;
 
 import com.RHCCServer.Model.Client;
 import com.RHCCServer.Model.Group;
+import com.RHCCServer.Utils.ImageUtils;
 import com.RHCCServer.Utils.Utils;
 
 public class Router extends WebSocketServer {
+	
+	static { System.loadLibrary(Core.NATIVE_LIBRARY_NAME); }
 	
 	private ArrayList<Group> groups=null;
 
@@ -64,7 +74,6 @@ public class Router extends WebSocketServer {
 			}
 			
 			Group g1 = getGroupForClient(conn);
-			System.out.println(g1.getAllMembers().size());
 			
 			this.sendToAllInGroupExcept( "new connection: " + params[0], getGroupForClient(conn), conn);
 		}
@@ -74,13 +83,6 @@ public class Router extends WebSocketServer {
 			this.sendToAllExcept("new connection: " + handshake.getResourceDescriptor(),conn);
 		}
 		
-//		try {
-//			this.stop();
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//		} catch (InterruptedException e) { 	
-//			e.printStackTrace();
-//		}
 	}
 
 	@Override
@@ -89,7 +91,7 @@ public class Router extends WebSocketServer {
 		Group g = getGroupForClient(conn);
 		if(g != null){
 			
-			String leftUser = getNameForConnection(conn);
+			String leftUser = getClientForConnection(conn).getUsername();
 			
 			this.sendToAllInGroupExcept( leftUser + " has left the collaboration!",g,conn);
 			System.out.println( leftUser + " has left the collaboration!" );
@@ -104,9 +106,9 @@ public class Router extends WebSocketServer {
 					if(tempCli.getConn().equals(conn)){
 						tempGrp.removeMember(tempCli);
 					}
-					if(tempGrp.getAllMembers().size() == 0){
-						groups.remove(tempGrp);
-					}
+				}
+				if(tempGrp.getAllMembers().size() == 0){
+					groups.remove(tempGrp);
 				}
 			}
 		}
@@ -119,11 +121,89 @@ public class Router extends WebSocketServer {
 	@Override
 	public void onMessage( WebSocket conn, String message ) {
 		
-		Group g = getGroupForClient(conn);
-		if(g==null) 
-			this.sendToAllExcept(message,conn);
-		else{
-			this.sendToAllInGroupExcept(message,g,conn);
+		ArrayList<WebSocket> conlist = null;
+		Client current = getClientForConnection(conn);
+		
+		if(current == null){
+			//Cannot merge on the server if no url provided i.e. if no group info
+			this.sendToAllExcept(message, conn);
+		}
+		else
+		{
+			current.setLatestFrame(message);
+			
+			Group g = getGroupForClient(conn);
+			
+			if(g==null)
+				conlist = new ArrayList<WebSocket>(this.connections());
+			else
+			{
+				conlist = new ArrayList<WebSocket>();
+				for(Client c : g.getAllMembers())
+					conlist.add(c.getConn());
+			}
+			
+			//System.out.println(conlist.size());
+			
+			BufferedImage bufImageCombined = null, bufImageExternal;
+			Mat frameExternal;
+			int i=0;
+			WebSocket firstNonSource;
+			Mat frameCombined = new Mat(240,320,CvType.CV_8UC3);
+		
+			firstNonSource = getFirstNonSourceWebSocket(conn);
+			
+			if(firstNonSource !=null)
+			{
+				Client ctemp = getClientForConnection(firstNonSource);	
+				bufImageExternal = ImageUtils.stringToImage(ctemp.getLatestFrame());
+				ctemp = null;
+				if(bufImageExternal != null){
+					byte[] data = ((DataBufferByte) bufImageExternal.getRaster().getDataBuffer()).getData();
+					frameExternal = new Mat(240, 320, CvType.CV_8UC3);
+					frameExternal.put(0, 0, data);
+					
+					bufImageExternal = null;
+					
+					Mat frameTempExternal = new Mat(240,320,CvType.CV_8UC3);
+			        Imgproc.resize(frameExternal, frameTempExternal, frameTempExternal.size());
+			        						        
+			        Core.addWeighted(frameTempExternal, 0.4, frameTempExternal, 0.6, 10.0, frameCombined);
+			        
+		        	while(i < conlist.size()) {
+		        		ctemp = getClientForConnection(conlist.get(i));	
+						bufImageExternal = ImageUtils.stringToImage(ctemp.getLatestFrame());
+						
+				        if(!(message.equals("/")) && (bufImageExternal != null)) 
+				        {						        	
+					        data = ((DataBufferByte) bufImageExternal.getRaster().getDataBuffer()).getData();
+							frameExternal = new Mat(240, 320, CvType.CV_8UC3);
+							frameExternal.put(0, 0, data);					        				        											        						        
+					        
+							bufImageExternal = null;
+							
+					        frameTempExternal = new Mat(240,320,CvType.CV_8UC3);
+					        Imgproc.resize(frameExternal, frameTempExternal, frameTempExternal.size());
+					        						        
+					        Core.addWeighted(frameCombined, 0.5, frameTempExternal, 0.5, 0.0, frameCombined);
+				        }
+						i+=1;
+		        	}
+		        	
+			        MatOfByte matOfByteCombined= new MatOfByte();						        						       
+				
+				    Highgui.imencode(".jpg", frameCombined, matOfByteCombined);
+				    byte[] byteArrayCombined = matOfByteCombined.toArray();
+				
+				    try {
+						bufImageCombined = ImageIO.read(new ByteArrayInputStream(byteArrayCombined));
+					} catch (IOException e) {
+						e.printStackTrace();
+					}								        							        							        							       
+				    String base64 = ImageUtils.imageToString(bufImageCombined,"jpg");
+				    conn.send(base64);
+				}
+		    }
 		}
 	}
 	
@@ -143,17 +223,33 @@ public class Router extends WebSocketServer {
 		s.start();
 		System.out.println( "RHCCServer started on port: " + s.getPort() );
 
-		BufferedReader sysin = new BufferedReader( new InputStreamReader( System.in ) );
+		 System.loadLibrary( Core.NATIVE_LIBRARY_NAME );
 		
 	}
 	@Override
 	public void onError( WebSocket conn, Exception ex ) {
 		ex.printStackTrace();
 		if( conn != null ) {
-			// some errors like port binding failed may not be assignable to a specific websocket
+			
 		}
 	}
 
+	
+	public WebSocket getFirstNonSourceWebSocket(WebSocket conn)
+	{
+		WebSocket firstNonSource = null;
+		Collection<WebSocket> con = connections();
+		synchronized ( con ) {
+			for(WebSocket c : con){
+				if(c.equals(conn))
+					continue;
+				firstNonSource = c;
+				break;
+			}
+		}
+		return firstNonSource;
+	}
+	
 	
 	public void sendToAll( String text ) {
 		Collection<WebSocket> con = connections();
@@ -200,11 +296,11 @@ public class Router extends WebSocketServer {
 		return null;
 	}
 	
-	public String getNameForConnection(WebSocket conn){
+	public Client getClientForConnection(WebSocket conn){
 		for(Group gtemp:groups){
 			for(Client ctemp : gtemp.getAllMembers()){
 				if(ctemp.getConn().equals(conn)){
-					return ctemp.getUsername();
+					return ctemp;
 				}
 			}
 		}
@@ -212,4 +308,3 @@ public class Router extends WebSocketServer {
 	}
 	
 }
-

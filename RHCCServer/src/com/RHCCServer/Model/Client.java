@@ -5,6 +5,7 @@ public class Client {
 	
 	private String username;
 	private WebSocket conn;
+	private String latestFrame;
 //	private String password;
 //	private String name;
 
@@ -40,5 +41,13 @@ public class Client {
 
 	public void setConn(WebSocket conn) {
 		this.conn = conn;
+	}
+
+	public String getLatestFrame() {
+		return latestFrame;
+	}
+
+	public void setLatestFrame(String latestFrame) {
+		this.latestFrame = latestFrame;
 	}
 }
