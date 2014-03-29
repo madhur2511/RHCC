@@ -222,10 +222,8 @@ public class Router extends WebSocketServer {
 		Router s = new Router( port );
 		s.start();
 		System.out.println( "RHCCServer started on port: " + s.getPort() );
-
-		 System.loadLibrary( Core.NATIVE_LIBRARY_NAME );
-		
 	}
+	
 	@Override
 	public void onError( WebSocket conn, Exception ex ) {
 		ex.printStackTrace();
