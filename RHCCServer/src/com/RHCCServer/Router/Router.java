@@ -7,7 +7,9 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collection;
+
 import javax.imageio.ImageIO;
+
 import org.java_websocket.WebSocket;
 import org.java_websocket.WebSocketImpl;
 import org.java_websocket.framing.Framedata;
@@ -17,6 +19,7 @@ import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfByte;
+import org.opencv.core.Size;
 import org.opencv.highgui.Highgui;
 import org.opencv.imgproc.Imgproc;
 
@@ -143,7 +146,6 @@ public class Router extends WebSocketServer {
 					conlist.add(c.getConn());
 			}
 			
-			//System.out.println(conlist.size());
 			
 			BufferedImage bufImageCombined = null, bufImageExternal;
 			Mat frameExternal;
@@ -168,7 +170,8 @@ public class Router extends WebSocketServer {
 					Mat frameTempExternal = new Mat(240,320,CvType.CV_8UC3);
 			        Imgproc.resize(frameExternal, frameTempExternal, frameTempExternal.size());
 			        						        
-			        Core.addWeighted(frameTempExternal, 0.4, frameTempExternal, 0.6, 10.0, frameCombined);
+			        //Core.addWeighted(frameTempExternal, 0.4, frameTempExternal, 0.6, 10.0, frameCombined);
+			        frameCombined = frameTempExternal;
 			        
 		        	while(i < conlist.size()) {
 		        		ctemp = getClientForConnection(conlist.get(i));	
@@ -189,10 +192,20 @@ public class Router extends WebSocketServer {
 				        }
 						i+=1;
 		        	}
-		        	
+		        	    	
 			        MatOfByte matOfByteCombined= new MatOfByte();						        						       
-				
-				    Highgui.imencode(".jpg", frameCombined, matOfByteCombined);
+			        Mat destination = null;
+			        
+			        try{
+		        		
+		    	        destination = new Mat(frameCombined.rows(),frameCombined.cols(),frameCombined.type());
+		    	        Imgproc.GaussianBlur(frameCombined, destination, new Size(0,0), 20);
+		    	        Core.addWeighted(frameCombined, 1.5, destination, -0.5, 0, destination);
+			        }catch (Exception e) {
+    	                  System.out.println("error: " + e.getMessage());
+    	            }
+    	            
+				    Highgui.imencode(".jpg", destination, matOfByteCombined);
 				    byte[] byteArrayCombined = matOfByteCombined.toArray();
 				
 				    try {

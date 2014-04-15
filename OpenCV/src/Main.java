@@ -19,6 +19,7 @@ import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JSlider;
+import javax.swing.JTextField;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
@@ -34,6 +35,7 @@ import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfByte;
+import org.opencv.core.Size;
 import org.opencv.highgui.Highgui;
 import org.opencv.highgui.VideoCapture;
 import org.opencv.imgproc.Imgproc;
@@ -41,19 +43,18 @@ import org.opencv.imgproc.Imgproc;
 public class Main {
 	
 	static { System.loadLibrary(Core.NATIVE_LIBRARY_NAME); }
+	public static String ip= "ws://192.168.2.17";
 	private JFrame window;
 	private JButton start, stop, save;
 	private ImagePanel ip1;
-	private ImagePanel ip2;
 	private ImagePanel ip3;
 	private JPanel buttonpanel;
-	private JSlider jslider;
+	private static JTextField username,group;
 	private VideoCapture video = null;	
 	private WebClient webclient;
 	private Boolean begin = false;
 	private Mat frameInternal = new Mat();
 	private String defaultloc;
-	private double alpha=0.5;
 	
 	public Main(String defaultloc) throws URISyntaxException
 	{
@@ -65,32 +66,55 @@ public class Main {
 	{
 	    window = new JFrame("Realtime Content Collaboration");
 	    
+	    Toolkit tk = Toolkit.getDefaultToolkit();
+		Dimension screen = tk.getScreenSize();
+		int width = screen.width;
+		int height = screen.height;
+		
+		System.out.println(width + " x " + height);
+	    
 	    buttonpanel = new JPanel();
 		buttonpanel.setLayout(null);
+		
+		username = new JTextField(10);
+		TextPrompt usernameprompt = new TextPrompt("Username", username); 
+		username.setText("");
+		username.setBounds(10, height-80, 100, 20);
+		window.add(username);
+		
+		group = new JTextField(10);
+		TextPrompt groupprompt = new TextPrompt("Group", group);
+		group.setText("");
+		group.setBounds(120, height-80, 100, 20);
+		window.add(group);
+		
 	    
 	    ip1 = new ImagePanel();
-		ip1.setBounds(150,10,200,160);
+		ip1.setBounds(10,10,200,160);
 		ip1.setBorder(BorderFactory.createLineBorder(Color.black));
 		window.add(ip1);
 		
-		ip2 = new ImagePanel();
-		ip2.setBounds(400,10,200,160);
-		ip2.setBorder(BorderFactory.createLineBorder(Color.black));
-		window.add(ip2);
-		
 		ip3 = new ImagePanel();
-		ip3.setBounds(275,180,200,160);
+		ip3.setBounds(275,10,width-300,height-120);
 		ip3.setBorder(BorderFactory.createLineBorder(Color.black));
 		window.add(ip3);
 	    
-	    
 	    start = new JButton("Start");
-		start.setBounds(10, 10, 70, 30);
+	    start.setBounds(230, height-85, 70, 30);
 		start.addActionListener(new ActionListener(){
 		      @Override
 		      public void actionPerformed(ActionEvent e){
 		        try {
-					start();
+		        	String ip = Main.ip;
+		        	String usernamename = Main.username.getText();
+		        	
+		        	String groupname = Main.group.getText();
+		        	
+		        	if(usernamename.length()!=0 && groupname.length()!=0){
+		        		String params = "?name="+usernamename+"&group="+groupname;
+		        		start(ip.concat(params));
+		        	}
+		        	
 				} catch (URISyntaxException e1) {
 					e1.printStackTrace();
 				}
@@ -99,7 +123,7 @@ public class Main {
 		buttonpanel.add(start);
 		
 		stop = new JButton("Stop");
-		stop.setBounds(10, 50, 70, 30);
+		stop.setBounds(310, height-85, 70, 30);
 		stop.addActionListener(new ActionListener(){
 		      @Override
 		      public void actionPerformed(ActionEvent e){
@@ -109,7 +133,7 @@ public class Main {
 		buttonpanel.add(stop);
 		
 		save = new JButton("Save");
-		save.setBounds(10, 90, 70, 30);
+		save.setBounds(390, height-85, 70, 30);
 		save.addActionListener(new ActionListener(){
 		      @Override
 		      public void actionPerformed(ActionEvent e){
@@ -122,42 +146,19 @@ public class Main {
 		});
 		buttonpanel.add(save);
 		
-		
-		jslider=new JSlider(JSlider.VERTICAL,0,10,5);//direction , min , max , current
-		jslider.setBounds(10, 150, 70, 200);
-		jslider.setFont(new Font("Tahoma",Font.BOLD,12));
-        jslider.setMajorTickSpacing(1);
-        jslider.setPaintLabels(true);
-        jslider.setPaintTicks(true);
-        jslider.setPaintTrack(true);
-        jslider.setAutoscrolls(true);
-        jslider.setPreferredSize(new Dimension(50,50));
-        jslider.addChangeListener(new ChangeListener() {
-            @Override
-            public void stateChanged(ChangeEvent e) {
-            	alpha=(jslider.getValue())/10.0;
-            }
-        });
-        buttonpanel.add(jslider);
         window.add(buttonpanel);
 		
-	    Toolkit tk = Toolkit.getDefaultToolkit();
-		Dimension screen = tk.getScreenSize();
-		int width = screen.width;
-		int height = screen.height;
-		
-		window.setSize(width/2,height/2);
-		window.setLocation(width/2-window.getSize().width/2, height/2-window.getSize().height/2);
-		
-	    window.setVisible(true);
+	    window.setSize(width,height);
+		window.setVisible(true);
 	    window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 	    window.setResizable(false);
 	}
 	
-	private void start() throws URISyntaxException
+	private void start(String loc) throws URISyntaxException
 	{
 		Draft[] drafts = { new Draft_17(), new Draft_10(), new Draft_76(), new Draft_75() };
-		webclient = new WebClient(new URI( defaultloc ), drafts[0]);
+		System.out.println("Connecting to Server: "+loc);
+		webclient = new WebClient(new URI(loc), drafts[0]);
 		if(begin == false)
 		{
 			webclient.connect();
@@ -190,6 +191,7 @@ public class Main {
 					        
 					        Mat frameTempInternal = new Mat(240,320,CvType.CV_8UC3);
 					        Imgproc.resize(frameInternal, frameTempInternal, frameTempInternal.size());
+					        
 					        matOfByteInternal= new MatOfByte();
 					        
 					        synchronized(webclient)
@@ -200,7 +202,6 @@ public class Main {
 						        {						        	
 								    try
 								    {					    								         
-								        ip2.updateImage(bufImageCombined);
 								        ip3.updateImage(bufImageCombined);							        							        									        
 								    }
 								    catch(Exception e)
@@ -216,19 +217,20 @@ public class Main {
 						        if(webclient.getMessage().contains("left the collaboration")){
 						        	System.out.println(webclient.getMessage().toString());
 						        }
-						      
-						        Highgui.imencode(".jpg", frameTempInternal, matOfByteInternal);
+						        
+					        	
+						        Highgui.imencode(".png", frameTempInternal, matOfByteInternal);
 							    byteArrayInternal = matOfByteInternal.toArray();
 							    try {
 									bufImageInternal = ImageIO.read(new ByteArrayInputStream(byteArrayInternal));
-									String base64 = ImageUtils.imageToString(bufImageInternal,"jpg");
+									String base64 = ImageUtils.imageToString(bufImageInternal,"png");
 									
 									if(webclient.isOpen())
 										webclient.send(base64);
 								} catch (IOException e) {
 									e.printStackTrace();
 								}
-						        ip1.updateImage(bufImageInternal);
+							    ip1.updateImage(bufImageInternal);
 					        }						    					   
 						}
 			        }
@@ -246,7 +248,7 @@ public class Main {
 			byte[] data = ((DataBufferByte) savimg.getRaster().getDataBuffer()).getData();
 			Mat saveframe = new Mat(240, 320, CvType.CV_8UC3);
 			saveframe.put(0, 0, data);					        				        											        						        
-			Highgui.imwrite("saved.jpg",saveframe);
+			Highgui.imwrite("saved1.png",saveframe);
 			System.out.println("Image Saved ...");
 		}else
 		{
@@ -268,8 +270,8 @@ public class Main {
 	{
 		WebSocketImpl.DEBUG = false;
 		String loc;
-		int port=8889;
-		BufferedReader reader = new BufferedReader(new FileReader("C:/Users/Madhur/workspace/port.txt"));
+		int port=1018;
+		BufferedReader reader = new BufferedReader(new FileReader("C:/Users/Anand/workspace/port.txt"));
 		String line = null;
 		while ((line = reader.readLine()) != null) {
 			port = Integer.parseInt(line);
@@ -279,11 +281,14 @@ public class Main {
 			loc = args[ 0 ];
 			System.out.println( "Default server url specified: \'" + loc + "\'" );
 		} else {
-			loc = "ws://192.168.2.13:"+port+"?name=Madhur&group=pescs";
-			System.out.println( "Default server url not specified: defaulting to \'" + loc + "\'" );
+			
+			Main.ip = (Main.ip).concat(":"+port);
+			
+			System.out.println( "Default server url not specified: defaulting to \'" + Main.ip + "\'" );
 		}
 						
-		Main m3 = new Main(loc);
+		
+		Main m3 = new Main(Main.ip);
 	}
 			
 }
