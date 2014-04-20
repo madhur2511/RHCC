@@ -24,6 +24,7 @@ public class ImageUtils {
 		        
 		    } catch (Exception e) {
 		       // e.printStackTrace();
+		    	image = null;
 		    }
         }
         return image;

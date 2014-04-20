@@ -10,16 +10,18 @@ public class ImageUtils {
 
     public static BufferedImage stringToImage(String string) {
 
-        BufferedImage image = null;
+        BufferedImage image = null;        
         byte[] bytes;
-        try {
-        	bytes = Base64.decode(string);
-            ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
-            image = ImageIO.read(bis);
-            bis.close();
-            
-        } catch (Exception e) {
-           // e.printStackTrace();
+        if(!string.equals("/")) {
+	        try {
+	        	bytes = Base64.decode(string);
+	            ByteArrayInputStream bis = new ByteArrayInputStream(bytes);	            
+	            image = ImageIO.read(bis);
+	            bis.close();
+	            
+	        } catch (Exception e) {
+	           // e.printStackTrace();
+	        }
         }
         return image;
     }
@@ -31,7 +33,7 @@ public class ImageUtils {
 
         try {
             ImageIO.write(image, type, bos);
-            byte[] bytes = bos.toByteArray();
+            byte[] bytes = bos.toByteArray();            
             string = Base64.encodeBytes(bytes);
             bos.close();
         } catch (IOException e) {

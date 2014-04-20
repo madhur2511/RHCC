@@ -13,6 +13,7 @@ public class Client {
 //		this.name = name;
 		this.username = username;
 		this.setConn(conn);
+		this.latestFrame = "";
 //		this.password = password;
 	}
 	
