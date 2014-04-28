@@ -7,13 +7,29 @@ import java.util.*;
 
 import javax.print.attribute.standard.Finishings;
 
+class WatershedSegmenter{
+    public Mat markers = new Mat();
+
+    public void setMarkers(Mat markerImage)
+    {
+        markerImage.convertTo(markers, CvType.CV_32S);
+    }
+
+    public Mat process(Mat image)
+    {
+        Imgproc.watershed(image, markers);
+        markers.convertTo(markers,CvType.CV_8U);
+        return markers;
+    }
+}
+
 public class FindContours
 {
 
 	public static void main(String args[])
 	{
 		System.loadLibrary( Core.NATIVE_LIBRARY_NAME );
-	
+		
 	    Mat image = Highgui.imread("C:/Users/Anand/workspace/OpenCV/saved8.png", Imgproc.COLOR_BGR2GRAY);
 	    Mat imageHSV = new Mat(image.size(), Core.DEPTH_MASK_8U);
 	    Mat imageBlurr = new Mat(image.size(), Core.DEPTH_MASK_8U);

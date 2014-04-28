@@ -4,13 +4,16 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 
+// A utilities class having reusable functions
 public class Utils 
 {
+	
+    // gets the port number stored in a configuration file on the server
 	public static int getPortFromFile()
 	{
 		BufferedReader reader = null;
 		try {
-			reader = new BufferedReader(new FileReader("C:/Users/Anand/workspace/port.txt"));
+			reader = new BufferedReader(new FileReader("C:/Users/Developer/Desktop/RHCC/RHCC/port.txt"));
 		} 
 		catch (FileNotFoundException e) {
 			e.printStackTrace();
@@ -39,6 +42,8 @@ public class Utils
 		return -1;
 	}
 	
+	
+	// gets the parameters from the URL hit by the client 
 	public static String[] getGETParamsFromURL(String s){
 		int i=0;
 		String[] args = s.split("&");
@@ -52,14 +57,3 @@ public class Utils
 	}
 	
 }
-
-
-
-
-
-
-
-
-
-
-

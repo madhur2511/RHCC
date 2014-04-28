@@ -10,6 +10,7 @@ import org.opencv.highgui.Highgui;
 import org.opencv.imgproc.Imgproc;
 
 
+// A Hough Lines method of detecting contours(boundary of paper) by detecting straight lines
 public class HoughLines {
 
 	public static void main(String[] args)
@@ -26,8 +27,6 @@ public class HoughLines {
 		Imgproc.cvtColor(image1, imageHSV1, Imgproc.COLOR_BGR2GRAY);
 		Imgproc.GaussianBlur(imageHSV1, imageBlurr1, new Size(3,3), 0.0);
 		
-		//Imgproc.adaptiveThreshold(imageBlurr, imageA, 100,Imgproc.ADAPTIVE_THRESH_MEAN_C, Imgproc.THRESH_BINARY_INV,7, 5);
-	    
 		Imgproc.Canny(imageBlurr1, imageA, 100, 300);
 		
 	    Highgui.imwrite("C:/Users/Anand/workspace/OpenCV/track1.png",imageA);

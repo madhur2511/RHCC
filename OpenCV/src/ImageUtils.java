@@ -5,9 +5,11 @@ import java.io.IOException;
 import javax.imageio.ImageIO;
 import org.java_websocket.util.Base64;
 
-
+// A utilities class to be used for image to string and vice-versa conversions
 public class ImageUtils {
 
+	
+	// Converts a given string to a Buffered Image (decoding)
     public static BufferedImage stringToImage(String string) {
 
         BufferedImage image = null;        
@@ -20,13 +22,13 @@ public class ImageUtils {
 	            bis.close();
 	            
 	        } catch (Exception e) {
-	           // e.printStackTrace();
 	        }
         }
         return image;
     }
 
    
+    // Converts a buffered image of a given type to a string (encoding)
     public static String imageToString(BufferedImage image, String type) {
         String string = null;
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -42,15 +44,4 @@ public class ImageUtils {
         return string;
     }
 
-//    public static void main (String args[]) throws IOException {
-//        
-//        BufferedImage img = ImageIO.read(new File("C:/Users/Madhur/workspace/OpenCV/fig/opencv.png"));
-//        BufferedImage newImg;
-//        String imgstr;
-//        imgstr = imageToString(img, "png");
-//        System.out.println(imgstr);
-//        newImg = stringToImage(imgstr);
-//        ImageIO.write(newImg, "png", new File("C:/Users/Madhur/workspace/OpenCV/fig/opencv(temp).png"));
-//        
-//    }
 }

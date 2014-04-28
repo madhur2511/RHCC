@@ -1,14 +1,12 @@
 package com.RHCCServer.Router;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collection;
 
-import javax.imageio.ImageIO;
 
 import org.java_websocket.WebSocket;
 import org.java_websocket.WebSocketImpl;
@@ -19,119 +17,121 @@ import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfByte;
-import org.opencv.core.Size;
 import org.opencv.highgui.Highgui;
-import org.opencv.imgproc.Imgproc;
 
 import com.RHCCServer.Model.Client;
 import com.RHCCServer.Model.Group;
 import com.RHCCServer.Utils.ImageUtils;
 import com.RHCCServer.Utils.Utils;
+import com.sun.org.apache.xml.internal.security.utils.Base64;
 
+
+// this class represents the main routing functionality of the server
 public class Router extends WebSocketServer {
 	
+	
+	// fixed resolution of the frames
 	private final static int WIDTH = 640;
 	private final static int HEIGHT = 480;
 	
 	static { System.loadLibrary(Core.NATIVE_LIBRARY_NAME); }
+
 	
+	// a list of active groups kept by the server
 	private ArrayList<Group> groups=null;
 
+	
 	public Router( int port ) throws UnknownHostException {
 		super( new InetSocketAddress( port ) );
 		groups = new ArrayList<Group>();
 	}
 
+	
 	public Router( InetSocketAddress address ) {
 		super( address );
 		groups = new ArrayList<Group>();
 	}
 	
-	public void sendToClientsForGroup(Group g) {
+	
+	// Merging Unit - Merge Frames from different client
+	public void sendToClientsForGroup(Group g) {	
 		
 		Client[] clientList = g.getAllMembers().toArray(new Client[0]);		
-		while(clientList.length > 0) {
-			BufferedImage bufImageCombined = null;
-			// merging
-			int clientsWithValidImage = 0;
-			String base64 = "";
-			Mat frameCombined = null;
-			for(Client c:clientList) {
-				String frame = c.getLatestFrame();											
-				BufferedImage bufImageExternal;
-				Mat frameExternal;							
-				bufImageExternal = ImageUtils.stringToImage(frame);
-				if(!frame.equals("/") && bufImageExternal != null) {
-					clientsWithValidImage += 1;
-					byte[] data = ((DataBufferByte) bufImageExternal.getRaster().getDataBuffer()).getData();
-					frameExternal = new Mat(HEIGHT, WIDTH, CvType.CV_8UC3);
-					frameExternal.put(0, 0, data);
-					
-					//Mat frameTempExternal = new Mat(HEIGHT,WIDTH,CvType.CV_8UC3);
-			        //Imgproc.resize(frameExternal, frameTempExternal, frameTempExternal.size());
-			        
-					if(clientsWithValidImage == 1)
-			        	frameCombined = frameExternal;
-			        else {
-			        	Core.addWeighted(frameCombined, 0.5, frameExternal, 0.5, 0.0, frameCombined);
-			        }
-			      
-			        MatOfByte matOfByteCombined= new MatOfByte();						        						       			        
-//			        Mat destination = new Mat();
-//			        try{
-//		        		
-//		    	        destination = new Mat(frameCombined.rows(),frameCombined.cols(),frameCombined.type());
-//		    	        Imgproc.GaussianBlur(frameCombined, destination, new Size(0,0), 20);
-//		    	        Core.addWeighted(frameCombined, 1.5, destination, -0.5, 0, destination);
-//			        }catch (Exception e) {
-//		                  System.out.println("error: " + e.getMessage());
-//		            }
-		            
-				    Highgui.imencode(".png", frameCombined, matOfByteCombined);
-				    byte[] byteArrayCombined = matOfByteCombined.toArray();
-				
-				    try {
-						bufImageCombined = ImageIO.read(new ByteArrayInputStream(byteArrayCombined));
-						base64 = ImageUtils.imageToString(bufImageCombined,"png");
-					} catch (IOException e) {
-						e.printStackTrace();
-					}											        							        							        							       				    
-				}													
-			}
+		while(clientList.length > 0) {					
 			
-			if(clientsWithValidImage > 0) {
-				// sending
-				for(Client c:clientList) {		
-					WebSocket conn = c.getConn();
-					if(conn != null) {
-						synchronized (conn) {
-							conn.send(base64);
+			for(Client c1:clientList) {								
+				
+				Mat frameCombined = null;				
+				int clientsWithValidImage = 0;
+				
+				for(Client c:clientList) {
+					
+					if(!c1.getConn().equals(c.getConn())) { 
+						
+						String frame = c.getLatestFrame();											
+						BufferedImage bufImageExternal;
+						Mat frameExternal;						
+						bufImageExternal = ImageUtils.stringToImage(frame);
+						
+						if(!frame.equals("/") && bufImageExternal != null) {	
+							clientsWithValidImage += 1; 
+							byte[] data = ((DataBufferByte) bufImageExternal.getRaster().getDataBuffer()).getData();
+						
+							frameExternal = new Mat(HEIGHT, WIDTH, CvType.CV_8UC3);
+							frameExternal.put(0, 0, data);
+					        
+							if(clientsWithValidImage == 1)
+					        	frameCombined = frameExternal;
+					        else {
+					        	Core.addWeighted(frameCombined, 0.5, frameExternal, 0.5, 0.0, frameCombined);
+					        }					      					        											    										        							        							        							       				 
 						}
 					}
-					System.out.println("Sending to client" + c.getUsername());
 				}
-			} else {
+				
+				if(frameCombined != null) {
+					MatOfByte matOfByteCombined= new MatOfByte();						        						       			        
+				    Highgui.imencode(".png", frameCombined, matOfByteCombined);
+				    
+				    byte[] byteArrayCombined = matOfByteCombined.toArray();				    
+					c1.setAddedFrame(Base64.encode(byteArrayCombined));					
+				}
+			}
+			
+			if(clientList.length > 1) {
+				for(Client c:clientList) {							
+					WebSocket conn = c.getConn();
+					if(conn.isOpen()) {												
+						conn.send(c.getAddedFrame());
+						System.out.println("Sending frame to client " + c.getUsername());						
+					}					
+				}
+			}								
+			
+			
+			if(clientList.length < 2) {
 				try {
 					Thread.sleep(100);
-					System.out.println("sleeping");
 				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}			
-			clientList = g.getAllMembers().toArray(new Client[0]);
+			
+			clientList = g.getAllMembers().toArray(new Client[0]);			
 		}
 	}
 
+			
+	
+	// Routing Feed Unit - Has functions to receive and send frames 
 	@Override
-	public void onOpen( WebSocket conn, ClientHandshake handshake ) {
-		
-		System.out.println( conn.getRemoteSocketAddress().getAddress().getHostAddress() + " entered the collaboration!" );
+	public void onOpen( WebSocket conn, ClientHandshake handshake ) {				
 		
 		String[] params = Utils.getGETParamsFromURL(handshake.getResourceDescriptor());
 		
 		if(params.length > 1){
-			System.out.println(params[0]+" joined");
+			
+			System.out.println(params[0]+" joined the collaboration");
 			
 			Client c = new Client(params[0],conn);
 			final Group g = new Group(params[1]);
@@ -163,15 +163,13 @@ public class Router extends WebSocketServer {
 					}
 				}).start();
 			}
-			
-			Group g1 = getGroupForClient(conn);
-			
-			this.sendToAllInGroupExcept( "new connection: " + params[0], getGroupForClient(conn), conn);						
+									
+			this.sendToAllInGroupExcept( "New connection: " + params[0], getGroupForClient(conn), conn);						
 		}
 		
-		else{
+		else {
 			System.out.println(handshake.getResourceDescriptor());
-			this.sendToAllExcept("new connection: " + handshake.getResourceDescriptor(),conn);
+			this.sendToAllExcept("New connection: " + handshake.getResourceDescriptor(),conn);
 		}
 		
 	}
@@ -182,8 +180,7 @@ public class Router extends WebSocketServer {
 		Group g = getGroupForClient(conn);
 		if(g != null){
 			
-			String leftUser = getClientForConnection(conn).getUsername();
-			
+			String leftUser = getClientForConnection(conn).getUsername();			
 			this.sendToAllInGroupExcept( leftUser + " has left the collaboration!",g,conn);
 			System.out.println( leftUser + " has left the collaboration!" );
 			
@@ -204,14 +201,13 @@ public class Router extends WebSocketServer {
 			}
 		}
 		else{
-			this.sendToAllExcept(conn + " has left the collaboration!",conn);
+			this.sendToAllExcept(conn + " has left the collaboration!", conn);
 		}
 	}
 	
 	@Override
 	public void onMessage( final WebSocket conn, final String message ) {
-		
-		ArrayList<WebSocket> conlist = null;
+				
 		Client current = getClientForConnection(conn);
 		if(current != null)
 			current.setLatestFrame(message);												
@@ -220,13 +216,14 @@ public class Router extends WebSocketServer {
 
 	@Override
 	public void onFragment( WebSocket conn, Framedata fragment ) {
-		//System.out.println( "received fragment: " + fragment );
+		
 	}
+		
 
 	public static void main( String[] args ) throws InterruptedException , IOException {
 		WebSocketImpl.DEBUG = false;
 		
-		int port=9000;
+		int port=1018;
 		port = Utils.getPortFromFile();
 		
 		Router s = new Router( port );

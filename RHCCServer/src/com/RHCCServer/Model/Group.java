@@ -1,6 +1,7 @@
 package com.RHCCServer.Model;
 import java.util.ArrayList;
 
+// this class represents a group and its methods and properties
 public class Group 
 {
 	private String groupName;

@@ -6,6 +6,7 @@ import java.awt.event.KeyListener;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.URI;
@@ -13,6 +14,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
@@ -46,17 +48,15 @@ import org.opencv.imgproc.Imgproc;
 import com.sun.org.apache.xml.internal.security.utils.Base64;
 
 public class Main2 {
-	
+		
 	static { System.loadLibrary(Core.NATIVE_LIBRARY_NAME); }
-	public static String ip= "ws://192.168.1.3";
+	public static String ip = "ws://";
 	private JFrame window;	
-	private ImagePanel ip1;
-	private ImagePanel ip3;		
+	private ImagePanel ip3;
 	private VideoCapture video = null;	
 	private WebClient webclient;
 	private Boolean begin = false;
 	private Mat frameInternal = new Mat();
-	private String defaultloc;	
 	private String sendStringShared = "";
 	private String receiveStringShared = "";	
 	private boolean guiUpdate = true;
@@ -64,37 +64,67 @@ public class Main2 {
 	private final static int WIDTH = 640;
 	private final static int HEIGHT = 480;
 	private RotatedRect backupRrect;
+	private BufferedImage blackScreen;
+	private BufferedImage whiteScreen;
+	private BufferedImage messageScreen;
 	
-	public Main2(String defaultloc) throws URISyntaxException
-	{		
-		buildGUI();
-		this.defaultloc = defaultloc;	
-		this.backupRrect = new RotatedRect(new Point(320, 240), new Size(WIDTH, HEIGHT), 0);
+	
+	// Builds the GUI and loads the required media
+	public Main2() throws URISyntaxException
+	{				
+		this.backupRrect = new RotatedRect(new Point(WIDTH/2, HEIGHT/2), new Size(WIDTH, HEIGHT), 0);
+		File fileBlackScreen = new File("C:/Users/Anand/workspace/OpenCV/Black.png");
+		File fileWhiteScreen = new File("C:/Users/Anand/workspace/OpenCV/White.png");
+		File fileMessageScreen = new File("C:/Users/Anand/workspace/OpenCV/Message.png");
+		
+		try {
+			blackScreen = ImageIO.read(fileBlackScreen);
+			whiteScreen = ImageIO.read(fileWhiteScreen);
+			messageScreen = ImageIO.read(fileMessageScreen);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}	
+		buildGUI();		
 	}		
 	
+	
+	// Presents the Dialog Box to the user on start up
 	public void showPopup() {
-		//STANDARD JDialog code      
 		
+		final JTextArea ip_TA = new JTextArea();
         final JTextArea username_TA = new JTextArea();
         final JTextArea groupname_TA = new JTextArea();         
-        final JComponent[] inputs = new JComponent[] {  
+        final JComponent[] inputs = new JComponent[] {
+                  new JLabel("IP Address:"),  
+                  ip_TA,  
                   new JLabel("Username:"),  
                   username_TA,  
                   new JLabel("Group:"),  
-                  groupname_TA  
+                  groupname_TA
         };  
+        
         int result = JOptionPane.showConfirmDialog(window, inputs, "Collaborator", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);          
         if(result == JOptionPane.OK_OPTION){        	
         	try {
         		String usernamename = username_TA.getText().trim();        	
             	String groupname = groupname_TA.getText().trim();
-	        	
-	        	if(usernamename.length()!=0 && groupname.length()!=0){
+            	String ipname = ip_TA.getText().trim();        	
+            	
+            	
+	        	if(usernamename.length()!=0 && groupname.length()!=0 && ipname.length()!=0){
 	        		String params = "?name="+usernamename+"&group="+groupname;
-	        		start(ip.concat(params));
+	        		ip = (ip.concat(ipname+":1018")).concat(params);
+	        		
+	        		System.out.println("Connecting to RHCC server at : "+ip);
+	        		
+	        		start(ip);
 	        	} else {
 	        		String params = "?name="+"m"+"&group="+"k";
-	        		start(ip.concat(params));
+	        		ip = (ip.concat("192.168.1.2:1018")).concat(params);
+	        		
+	        		System.out.println("Connecting to RHCC server at : "+ip);
+	        		
+	        		start(ip);
 	        	}
 	        	
 			} catch (URISyntaxException e1) {
@@ -106,6 +136,8 @@ public class Main2 {
         window.requestFocus();
 	}
 	
+	
+	// Builds the GUI including image frames and events registration
 	public void buildGUI()
 	{
 	    window = new JFrame("Realtime Content Collaboration");
@@ -121,49 +153,50 @@ public class Main2 {
 		ip3.setBounds(0 , 0, width, height);
 		ip3.setBorder(BorderFactory.createLineBorder(Color.black));
 		window.add(ip3);
-		
-//		ip1 = new ImagePanel();
-//		ip1.setBounds(0,0, 640, 480);
-//		ip1.setBorder(BorderFactory.createLineBorder(Color.black));
-//		window.add(ip1);
-	   		
+			
 		window.addKeyListener(new KeyListener() {
 
 			@Override
 			public void keyPressed(KeyEvent arg0) {								
 			}
 
+			
 			@Override
 			public void keyReleased(KeyEvent arg0) {
 					
-				// optimize points
 				if(arg0.getKeyCode() == 79) {
-					// press shift x
+					// press shift o
 					optimizePoints();
 				}
 				
 				if(arg0.getKeyCode() == 88) {
 					// press shift x
 					stop();
+					window.dispose();
+					System.exit(0);
 				}
 				
 				if(arg0.getKeyCode() == 83) {
+					// press shift s
 					save();
 				}
 				
 				if(arg0.getKeyCode() == 27) {
+					// press Esc
 					stop();
 					window.dispose();
-					System.exit(0);
+					System.exit(1);
 				}					
 			}
 
+			
 			@Override
 			public void keyTyped(KeyEvent arg0) {				
 			}
 			
 		});
         
+		
         window.setUndecorated(true);
 	    window.setSize(width,height);
 		window.setVisible(true);
@@ -172,24 +205,63 @@ public class Main2 {
 	    showPopup();
 	}
 	
+	
+	// initially called to track the display area and save it for later use
 	private void optimizePoints() {
-		if(frameInternal != null) {
+		
+			video.grab();
+		
+			ip3.updateImage(messageScreen);			
+			try {
+				Thread.sleep(7000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		
 			
-			Mat originalFrame = frameInternal;					
-			Mat returnMat = null;
-			Mat imageHSV = new Mat(originalFrame.size(), Core.DEPTH_MASK_8U);
-		    Mat imageBlurr = new Mat(originalFrame.size(), Core.DEPTH_MASK_8U);
-		    Mat imageAB = new Mat(originalFrame.size(), Core.DEPTH_MASK_ALL);
-		    Imgproc.cvtColor(originalFrame, imageHSV, Imgproc.COLOR_BGR2GRAY);
-		    Imgproc.GaussianBlur(imageHSV, imageBlurr, new Size(5,5), 0);
+			ip3.updateImage(whiteScreen);			
+			try {
+				Thread.sleep(3000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			
+			
+			video.grab();
+			video.retrieve(frameInternal);
+			
+			Mat threeChannel = new Mat();
+	        Imgproc.cvtColor(frameInternal, threeChannel, Imgproc.COLOR_BGR2GRAY);
+	        Imgproc.threshold(threeChannel, threeChannel, 100, 255, Imgproc.THRESH_BINARY);
+	        
+	        Mat fg = new Mat(frameInternal.size(),CvType.CV_8U);
+	        Imgproc.erode(threeChannel,fg,new Mat(),new Point(-1,-1),2);
+
+	        Mat bg = new Mat(frameInternal.size(),CvType.CV_8U);
+	        Imgproc.dilate(threeChannel,bg,new Mat(),new Point(-1,-1),3);
+	        
+	        Imgproc.threshold(bg,bg,1, 128,Imgproc.THRESH_BINARY_INV);
+
+	        Mat markers = new Mat(frameInternal.size(),CvType.CV_8U, new Scalar(0));
+	        Core.add(fg, bg, markers);
+	        
+	        WatershedSegmenter segmenter = new WatershedSegmenter();
+	        segmenter.setMarkers(markers);
+	        Mat markedResult = segmenter.process(frameInternal);
+
+	        Highgui.imwrite("marked.png",markedResult);
+	        
+			Mat imageBlurr = new Mat(markedResult.size(), Core.DEPTH_MASK_8U);
+		    Mat imageAB = new Mat(markedResult.size(), Core.DEPTH_MASK_ALL);
+		    
+		    Imgproc.GaussianBlur(markedResult, imageBlurr, new Size(5,5), 0);
 		    Imgproc.adaptiveThreshold(imageBlurr, imageAB, 255,Imgproc.ADAPTIVE_THRESH_MEAN_C, Imgproc.THRESH_BINARY_INV,7, 5);
 		    
 		    double max=0.0;
 		    int max_index=0;
 		    double tempcontourarea=0.0;
 		    Imgproc.Canny(imageAB, imageAB, 100, 300);
-		    
-		    
+		    		    
 		    List<MatOfPoint> contours = new ArrayList<MatOfPoint>();    
 		    
 		    Imgproc.findContours(imageAB, contours, new Mat(), Imgproc.RETR_EXTERNAL,Imgproc.CHAIN_APPROX_NONE);
@@ -203,19 +275,14 @@ public class Main2 {
 		        }
 	        }
 		    
+		    
 		    if(contours.size() != 0 && max > 40000) {
 		    
 			    MatOfPoint2f conto = new MatOfPoint2f();
-		    	MatOfPoint2f approx = new MatOfPoint2f();            	
-		    	Point ptrrect[] =new Point[4];
 		    	
 		    	contours.get(max_index).convertTo(conto, CvType.CV_32FC2);
 		    	
 		    	RotatedRect rrect = Imgproc.minAreaRect(conto);  
-	//	    	rrect.points(ptrrect);    	
-	//	    	for(Point p:ptrrect)
-	//				Core.circle(originalFrame, p, 8, new Scalar(186,23,219),3);
-	//	    		    	 	    						     	
 		     	
 		     	if(rrect.size.height > rrect.size.width) {
 		     		rrect.size = new Size(rrect.size.height, rrect.size.width);
@@ -224,12 +291,12 @@ public class Main2 {
 		    	setBackupRotatedRect(rrect);
 		    }
 		    else {
-		    	setBackupRotatedRect(new RotatedRect(new Point(320, 240), new Size(WIDTH, HEIGHT), 0));
+		    	setBackupRotatedRect(new RotatedRect(new Point(WIDTH/2, HEIGHT/2), new Size(WIDTH, HEIGHT), 0));
 		    }
-		    	 
-		}
 	}
+
 	
+	// starts the GUI Update thread
 	private void startGUIUpdate()
 	{
 		new Thread(new Runnable(){
@@ -239,48 +306,56 @@ public class Main2 {
 			{
 				Mat frameResizedInternal = new Mat(HEIGHT,WIDTH,CvType.CV_8UC3);
 				byte[] byteArrayInternal;				        
-		        MatOfByte matOfByteInternal = new MatOfByte(); 
-				while(guiUpdate == true)
+		        MatOfByte matOfByteInternal = new MatOfByte();
+		        BufferedImage bufImageCombined = null;
+		        while(guiUpdate == true)
 				{
-					// send webcam feed
-					video.read(frameInternal);
-			        video.retrieve(frameInternal);
+					bufImageCombined = ImageUtils.stringToImage(receiveStringShared);
+			        
+			        if(bufImageCombined != null) {
+			        	ip3.updateImage(bufImageCombined);
+			        
+			        }					
+					
+					try {
+						Thread.sleep(40);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+					
+					video.grab();
+					try{
+						video.retrieve(frameInternal);			        			        			        
+					}catch(Exception e){						
+					}		
+						
+						
 			        Point pt[] = new Point[4];			    
 			        backupRrect.points(pt);
-			        for(Point p:pt)
-						Core.circle(frameInternal, p, 8, new Scalar(186,23,219),3);
 			        if(frameInternal != null) {			        	
-			        	Mat modifiedFrameInternal = imageTransform(frameInternal);			        	
+			        	Mat modifiedFrameInternal = imageTransform(frameInternal);			        
 			        	if(modifiedFrameInternal == null){
 			        		modifiedFrameInternal = frameInternal;
-			        	}			  			        				        	
-				        Imgproc.resize(modifiedFrameInternal, frameResizedInternal, frameResizedInternal.size());				        
+			        	}
+			        	Imgproc.resize(modifiedFrameInternal, frameResizedInternal, frameResizedInternal.size());				        
+					    		
 				        Highgui.imencode(".png", frameResizedInternal, matOfByteInternal);				        
 					    byteArrayInternal = matOfByteInternal.toArray();
 					    String base64  = Base64.encode(byteArrayInternal);
-					    setSendStringShared(base64);							    
-			        }				    
-				    // update Screen			        
-					BufferedImage bufImageCombined = ImageUtils.stringToImage(receiveStringShared);
-			        if(bufImageCombined != null) {
-			        	ip3.updateImage(bufImageCombined);
-			        }			       			        
-				}				
-			}			
+					    setSendStringShared(base64);	
+					    if(webclient.isOpen() && sendStringShared != "") {
+							webclient.send(sendStringShared);																			
+						}
+			        }
+				}
+			}				
+					
 			
 		}).start();
 	}
 	
-	private BufferedImage BufferedImagefromMat(Mat image) {
-		BufferedImage buff = null;
-		MatOfByte mob = new MatOfByte();
-		Highgui.imencode(".png", image, mob);				        
-	    byte[] bytearray = mob.toArray();
-	    String base64 = Base64.encode(bytearray);
-	    buff = ImageUtils.stringToImage(base64);
-		return buff;
-	}
 	
+	// starts the Web Socket Updation thread
 	private void startWebSocketUpdate()
 	{
 		new Thread(new Runnable(){
@@ -290,61 +365,25 @@ public class Main2 {
 			{			
 				while(websocketUpdate == true) 
 				{					
-					// receive string update			
 					Mat frameExternal = null;					
-			     	BufferedImage croppedRecBufferedImage = ImageUtils.stringToImage(webclient.getMessage());			     	
+			     	BufferedImage croppedRecBufferedImage = ImageUtils.stringToImage(webclient.getMessage());		
+			     	
 			     	if(!webclient.getMessage().equals("/") && croppedRecBufferedImage != null) {				     		
-			     		synchronized (backupRrect) {															     			
-					 	    Rect rect = backupRrect.boundingRect();				     	
-					     	if(rect.x < 0) 
-					     		rect.x = 0;
-					     	if(rect.y < 0) 
-					     		rect.y = 0;	
-					     	Point[] transPt = transform(rect,backupRrect);    	
-					     	sortCorners(transPt, backupRrect.center);
-					     	
-							byte[] data = ((DataBufferByte) croppedRecBufferedImage.getRaster().getDataBuffer()).getData();
-							frameExternal = new Mat(HEIGHT, WIDTH, CvType.CV_8UC3);
-							frameExternal.put(0, 0, data);										
-							Mat resizedFrameExternal = new Mat((int)backupRrect.size.height, (int)backupRrect.size.width , CvType.CV_8UC3);						
-					     	Imgproc.resize(frameExternal, resizedFrameExternal, new Size((int)backupRrect.size.width, (int)backupRrect.size.height));					     	
-					 	    Mat retreive = new Mat(HEIGHT ,WIDTH , frameInternal.type());	 
-					 	    Mat retreiverotate = new Mat(); 	    					 	    			     					     	 
-					 	    resizedFrameExternal.copyTo(retreive.submat((int)transPt[0].y, (int)transPt[0].y + resizedFrameExternal.rows() , (int)transPt[0].x, (int)transPt[0].x + resizedFrameExternal.cols()));					 	    					 	    
-					 	    Mat contourInverseTransformation = Imgproc.getRotationMatrix2D(backupRrect.center,  - backupRrect.angle, 1.0);
-					 	    Imgproc.warpAffine(retreive, retreiverotate, contourInverseTransformation, retreive.size());	    				 	    
-					 	    //Core.addWeighted(modified , 0.2, retreiverotate, 0.8, 10, modified);	
-					 	    MatOfByte matOfByteCombined= new MatOfByte();						        						       			        			           
-						    Highgui.imencode(".png", retreiverotate, matOfByteCombined);
-						    byte[] byteArrayCombined = matOfByteCombined.toArray();
-						    String base64 = Base64.encode(byteArrayCombined);
-						    setReceiveStringShared(base64);		 
-			     		}
-			     	}					
-					if(sendStringShared != "") {
-						webclient.send(sendStringShared);						
-						try {
-							Thread.sleep(40);
-						} catch (InterruptedException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
-					}
-					else 
-					{
-						try {
-							Thread.sleep(100);
-						} catch (InterruptedException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
-					}
+						    setReceiveStringShared(webclient.getMessage());						    					        
+					        try {
+								Thread.sleep(100);
+							} catch (InterruptedException e) {
+								e.printStackTrace();
+							}
+			     	}			     					
 				}
 			}
 			
 		}).start();
 	}
 	
+	
+	// called when the user enters credentials and connects to the server, optimizes and starts the threads
 	private void start(String loc) throws URISyntaxException
 	{
 		Draft[] drafts = { new Draft_17(), new Draft_10(), new Draft_76(), new Draft_75() };
@@ -353,13 +392,9 @@ public class Main2 {
 		if(begin == false)
 		{
 			webclient.connect();
-			video = new VideoCapture(0);			
-			try {
-				Thread.sleep(2000);
-			} catch (InterruptedException e1) {
-				e1.printStackTrace();
-			}
+			video = new VideoCapture(0);						
 			
+			optimizePoints();
 			startGUIUpdate();
 			startWebSocketUpdate();
 			begin = true;
@@ -367,23 +402,36 @@ public class Main2 {
 	}
 	
 	
+	// called when user tries to save the image, saves the image in local disk
 	private void save()
 	{
-		BufferedImage savimg = (BufferedImage)ip3.getImage();
-		if(savimg != null)
+		
+		BufferedImage received = ImageUtils.stringToImage(receiveStringShared);
+		BufferedImage sent = ImageUtils.stringToImage(sendStringShared);
+						
+		if( received != null && sent != null)
 		{
-			byte[] data = ((DataBufferByte) savimg.getRaster().getDataBuffer()).getData();
-			Mat saveframe = new Mat(HEIGHT,WIDTH, CvType.CV_8UC3);
-			saveframe.put(0, 0, data);					        				        											        						        
-			Highgui.imwrite("saved11.png",saveframe);
+			Mat matReceived = new Mat(HEIGHT, WIDTH, CvType.CV_8UC3);
+			Mat matSent = new Mat(HEIGHT, WIDTH, CvType.CV_8UC3);
+
+			byte[] data = ((DataBufferByte) received.getRaster().getDataBuffer()).getData();
+			matReceived.put(0, 0, data);
+
+			byte[] data1 = ((DataBufferByte) sent.getRaster().getDataBuffer()).getData();
+			matSent.put(0, 0, data1);
+
+			Core.addWeighted(matSent, 0.6, matReceived, 0.4, 5, matReceived);
+			
+			Highgui.imwrite("savedStar.png",matReceived);
 			System.out.println("Image Saved ...");
 		}else
 		{
-			System.out.println("Cannot save Image.. Non existant remote Connection!");
+			System.out.println("Cannot save Image...");
 		}
 	}
 	
 	
+	// stops the ongoing collaboration
 	private void stop()
 	{		
 		if(begin == true) {
@@ -395,12 +443,13 @@ public class Main2 {
 	}
 	
 	
+	// crops the image according to the saved location in optimize function
 	public Mat imageTransform(Mat original)
 	{				     	
 		RotatedRect rrect = backupRrect; 	  
 	     
      	Rect rect = rrect.boundingRect();
-     	Size size = new Size();
+
      	if(rect.x < 0) 
      		rect.x = 0;
      	if(rect.y < 0) 
@@ -410,16 +459,17 @@ public class Main2 {
      	sortCorners(transPt, rrect.center);    	    	    	
      	
      	Mat transformMatrix = Imgproc.getRotationMatrix2D(rrect.center, rrect.angle, 1.0);
-     	Mat rotated = new Mat();
+     	Mat rotated = new Mat(original.rows(),original.cols(),original.type());
      	Mat cropped = new Mat();    	
      	
-     	Imgproc.warpAffine(original, rotated, transformMatrix, size);    		
+     	Imgproc.warpAffine(original, rotated, transformMatrix, rotated.size());    		
      	Imgproc.getRectSubPix(rotated, rrect.size, rrect.center, cropped);    	    		        	      
  	    
      	return cropped;     	     	     	     		     		 	    	    	    	   
 	}
 	
 	
+	// sets the send string to be sent over the network to the server
 	private void setSendStringShared(String string) 
 	{
 		synchronized(sendStringShared) 
@@ -428,6 +478,8 @@ public class Main2 {
 		}
 	}
 	
+	
+	// sets the receive string received from the server 
 	private void setReceiveStringShared(String string) 
 	{
 		synchronized(receiveStringShared) 
@@ -436,30 +488,16 @@ public class Main2 {
 		}
 	}	
 	
+	
 	public static void main(String args[]) throws NumberFormatException, IOException, URISyntaxException
 	{
 		WebSocketImpl.DEBUG = false;
-		String loc;
-		int port=1018;
-		BufferedReader reader = new BufferedReader(new FileReader("C:/Users/Anand/workspace/port.txt"));
-		String line = null;
-		while ((line = reader.readLine()) != null) {
-			port = Integer.parseInt(line);
-		}
-		
-		if( args.length != 0 ) {
-			loc = args[ 0 ];
-			System.out.println( "Default server url specified: \'" + loc + "\'" );
-		} else {
-			
-			Main2.ip = (Main2.ip).concat(":"+port);			
-			System.out.println( "Default server url not specified: defaulting to \'" + Main2.ip + "\'" );
-		}
 						
-		
-		Main2 m3 = new Main2(Main2.ip);
+		Main2 m = new Main2();
 	}
 	
+	
+	// transforms the rotated rectangle detected to an up-right rectangle
 	public static Point[] transform(Rect rect , RotatedRect rrect)
 	{
 		Point pt[] = new Point[4];		
@@ -476,6 +514,8 @@ public class Main2 {
 		return pt;
 	}
 	
+	
+	// sorts the corners detected and arranges them as TL,TR,BL,BR
 	public static void sortCorners(Point []corners, Point center)
 	{
 		List<Point> top = new ArrayList<Point>();
@@ -501,6 +541,8 @@ public class Main2 {
 	    corners[3] = bl;	    	    
 	}
 	
+	
+	// finds the Eucledian distance between two points one and two
 	public static double distance(Point one, Point two)
 	{
 		double x1 = one.x;double y1 = one.y;
@@ -509,6 +551,8 @@ public class Main2 {
 		return Math.sqrt(((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2)));
 	}
 	
+	
+	// applies transform on points based on angle and center to get the up-right rectangle
 	public static Point rotateAngle(Point p, Point center, double theta) 
 	{
 		Point rp = new Point();
@@ -517,6 +561,8 @@ public class Main2 {
 		return rp;
 	}
 	
+	
+	// sets the rectangle detected to be used later by mageTransform
 	public void setBackupRotatedRect(RotatedRect rrect) {
 		synchronized (backupRrect) {
 			backupRrect = rrect;	
@@ -526,6 +572,8 @@ public class Main2 {
 			
 }
 
+
+// class for the Web Sockets
 class WebClient extends WebSocketClient
 {
 	private String message = "";

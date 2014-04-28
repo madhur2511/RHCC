@@ -32,17 +32,22 @@ public class Router {
 	private int port;
 	private String IPv4Addr;	
 	private String location;
+	private String username;
+	private String groupname;
 	WebClient webclient;
 	Draft[] drafts = { new Draft_17(), new Draft_10(), new Draft_76(), new Draft_75() };
 	private Boolean begin = false;		
-	private Activity mainActivity;
+	private Activity mainActivity;	
 	
-	public Router(String IPv4Addr, int port, Activity activity) {
+	public Router(String IPv4Addr, int port, String username , String groupname, Activity activity) {
 		
 		this.port = port;
 		this.IPv4Addr = IPv4Addr;
-		this.location = "ws://" + IPv4Addr + ":" + port + "?name=nishu&group=pescs";	
-		this.mainActivity = activity;
+		this.username = username;
+		this.groupname = groupname;
+		
+		this.location = "ws://" + IPv4Addr + ":" + port + "?name=" + username + "&group=" + groupname + "&type=mobile";	
+		this.mainActivity = activity;		
 		WebSocketImpl.DEBUG = false;		
 	}
 	
